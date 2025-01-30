@@ -1,0 +1,330 @@
+following unit of 8 bit MIPS processor in verilog code with the following module with their Test benches a) Instruction memory b) Register file c)Data Memory d)ALU unit e)ALU Control unit f)control Unit
+a) Instruction Memory
+module InstructionMemory (
+    input [7:0] address,
+    output reg [7:0] instruction
+);
+    reg [7:0] mem [0:255]; // 256 bytes of memory
+
+    // Initialize memory with some instructions
+    initial begin
+        mem[0] = 8'b00000001; // Example instruction
+        mem[1] = 8'b00000010;
+        mem[2] = 8'b00000011;
+    end
+
+    always @(*) begin
+        instruction = mem[address];
+    end
+endmodule
+
+// Testbench for Instruction Memory
+module InstructionMemory_tb;
+    reg [7:0] address;
+    wire [7:0] instruction;
+
+    InstructionMemory uut (
+        .address(address),
+        .instruction(instruction)
+    );
+
+    initial begin
+        address = 8'd0;
+        #10;
+        $display("Instruction at address %h: %h", address, instruction);
+
+        address = 8'd1;
+        #10;
+        $display("Instruction at address %h: %h", address, instruction);
+
+        $finish;
+    end
+endmodule
+b) Register File
+module RegisterFile (
+    input clk,
+    input [2:0] read_reg1, read_reg2, write_reg,
+    input [7:0] write_data,
+    input reg_write,
+    output [7:0] read_data1, read_data2
+);
+    reg [7:0] registers [0:7]; // 8 registers of 8 bits each
+
+    always @(posedge clk) begin
+        if (reg_write) begin
+            registers[write_reg] <= write_data;
+        end
+    end
+
+    assign read_data1 = registers[read_reg1];
+    assign read_data2 = registers[read_reg2];
+endmodule
+
+// Testbench for Register File
+module RegisterFile_tb;
+    reg clk;
+    reg [2:0] read_reg1, read_reg2, write_reg;
+    reg [7:0] write_data;
+    reg reg_write;
+    wire [7:0] read_data1, read_data2;
+
+    RegisterFile uut (
+        .clk(clk),
+        .read_reg1(read_reg1),
+        .read_reg2(read_reg2),
+        .write_reg(write_reg),
+        .write_data(write_data),
+        .reg_write(reg_write),
+        .read_data1(read_data1),
+        .read_data2(read_data2)
+    );
+
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk;
+    end
+
+    initial begin
+        reg_write = 1;
+        write_reg = 3'd1;
+        write_data = 8'hAA;
+        #10;
+
+        reg_write = 0;
+        read_reg1 = 3'd1;
+        #10;
+        $display("Read Data 1: %h", read_data1);
+
+        $finish;
+    end
+endmodule
+c) Data Memory
+module DataMemory (
+    input clk,
+    input [7:0] address,
+    input [7:0] write_data,
+    input mem_write, mem_read,
+    output [7:0] read_data
+);
+    reg [7:0] mem [0:255]; // 256 bytes of memory
+
+    always @(posedge clk) begin
+        if (mem_write) begin
+            mem[address] <= write_data;
+        end
+    end
+
+    assign read_data = (mem_read) ? mem[address] : 8'b0;
+endmodule
+
+// Testbench for Data Memory
+module DataMemory_tb;
+    reg clk;
+    reg [7:0] address, write_data;
+    reg mem_write, mem_read;
+    wire [7:0] read_data;
+
+    DataMemory uut (
+        .clk(clk),
+        .address(address),
+        .write_data(write_data),
+        .mem_write(mem_write),
+        .mem_read(mem_read),
+        .read_data(read_data)
+    );
+
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk;
+    end
+
+    initial begin
+        mem_write = 1;
+        address = 8'd10;
+        write_data = 8'hFF;
+        #10;
+
+        mem_write = 0;
+        mem_read = 1;
+        #10;
+        $display("Read Data: %h", read_data);
+
+        $finish;
+    end
+endmodule
+d) ALU Unit
+module ALU (
+    input [7:0] src1, src2,
+    input [2:0] alu_control,
+    output reg [7:0] result,
+    output zero
+);
+    always @(*) begin
+        case (alu_control)
+            3'b000: result = src1 + src2; // ADD
+            3'b001: result = src1 - src2; // SUB
+            3'b010: result = src1 & src2; // AND
+            3'b011: result = src1 | src2; // OR
+            3'b100: result = ~(src1 | src2); // NOR
+            default: result = 8'b0;
+        endcase
+    end
+
+    assign zero = (result == 8'b0);
+endmodule
+
+// Testbench for ALU
+module ALU_tb;
+    reg [7:0] src1, src2;
+    reg [2:0] alu_control;
+    wire [7:0] result;
+    wire zero;
+
+    ALU uut (
+        .src1(src1),
+        .src2(src2),
+        .alu_control(alu_control),
+        .result(result),
+        .zero(zero)
+    );
+
+    initial begin
+        src1 = 8'd5;
+        src2 = 8'd3;
+        alu_control = 3'b000; // ADD
+        #10;
+        $display("Result: %h, Zero: %b", result, zero);
+
+        alu_control = 3'b001; // SUB
+        #10;
+        $display("Result: %h, Zero: %b", result, zero);
+
+        $finish;
+    end
+endmodule
+e) ALU Control Unit
+module ALUControl (
+    input [1:0] alu_op,
+    input [5:0] funct,
+    output reg [2:0] alu_control
+);
+    always @(*) begin
+        case (alu_op)
+            2'b00: alu_control = 3'b000; // ADD
+            2'b01: alu_control = 3'b001; // SUB
+            2'b10: 
+                case (funct)
+                    6'b100000: alu_control = 3'b000; // ADD
+                    6'b100010: alu_control = 3'b001; // SUB
+                    6'b100100: alu_control = 3'b010; // AND
+                    6'b100101: alu_control = 3'b011; // OR
+                    6'b100111: alu_control = 3'b100; // NOR
+                    default: alu_control = 3'b000;
+                endcase
+            default: alu_control = 3'b000;
+        endcase
+    end
+endmodule
+
+// Testbench for ALU Control Unit
+module ALUControl_tb;
+    reg [1:0] alu_op;
+    reg [5:0] funct;
+    wire [2:0] alu_control;
+
+    ALUControl uut (
+        .alu_op(alu_op),
+        .funct(funct),
+        .alu_control(alu_control)
+    );
+
+    initial begin
+        alu_op = 2'b10;
+        funct = 6'b100000; // ADD
+        #10;
+        $display("ALU Control: %b", alu_control);
+
+        funct = 6'b100010; // SUB
+        #10;
+        $display("ALU Control: %b", alu_control);
+
+        $finish;
+    end
+endmodule
+f) Control Unit
+module ControlUnit (
+    input [5:0] opcode,
+    output reg reg_dst, reg_write, alu_src, mem_write, mem_read, mem_to_reg,
+    output reg [1:0] alu_op
+);
+    always @(*) begin
+        case (opcode)
+            6'b000000: begin // R-type
+                reg_dst = 1;
+                reg_write = 1;
+                alu_src = 0;
+                mem_write = 0;
+                mem_read = 0;
+                mem_to_reg = 0;
+                alu_op = 2'b10;
+            end
+            6'b100011: begin // LW
+                reg_dst = 0;
+                reg_write = 1;
+                alu_src = 1;
+                mem_write = 0;
+                mem_read = 1;
+                mem_to_reg = 1;
+                alu_op = 2'b00;
+            end
+            6'b101011: begin // SW
+                reg_dst = 0;
+                reg_write = 0;
+                alu_src = 1;
+                mem_write = 1;
+                mem_read = 0;
+                mem_to_reg = 0;
+                alu_op = 2'b00;
+            end
+            default: begin
+                reg_dst = 0;
+                reg_write = 0;
+                alu_src = 0;
+                mem_write = 0;
+                mem_read = 0;
+                mem_to_reg = 0;
+                alu_op = 2'b00;
+            end
+        endcase
+    end
+endmodule
+
+// Testbench for Control Unit
+module ControlUnit_tb;
+    reg [5:0] opcode;
+    wire reg_dst, reg_write, alu_src, mem_write, mem_read, mem_to_reg;
+    wire [1:0] alu_op;
+
+    ControlUnit uut (
+        .opcode(opcode),
+        .reg_dst(reg_dst),
+        .reg_write(reg_write),
+        .alu_src(alu_src),
+        .mem_write(mem_write),
+        .mem_read(mem_read),
+        .mem_to_reg(mem_to_reg),
+        .alu_op(alu_op)
+    );
+
+    initial begin
+        opcode = 6'b000000; // R-type
+        #10;
+        $display("Control Signals: R-type");
+
+        opcode = 6'b100011; // LW
+        #10;
+        $display("Control Signals: LW");
+
+        $finish;
+    end
+endmodule
