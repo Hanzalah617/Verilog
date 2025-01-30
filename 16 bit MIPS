@@ -1,0 +1,290 @@
+following unit of 16 bit MIPS processor in verilog code with the following module with their Test benches a) Instruction memory b) Register file c)Data Memory d)ALU unit e)ALU Control unit f)control Unit
+1. Instruction Memory
+module InstructionMemory (
+    input [15:0] address,
+    output [15:0] instruction
+);
+    reg [15:0] mem [0:255]; // 256 x 16-bit memory
+
+    // Initialize memory with some instructions
+    initial begin
+        mem[0] = 16'b0001000100100011; // Example instruction
+        mem[1] = 16'b0010001101000101; // Example instruction
+    end
+
+    assign instruction = mem[address];
+endmodule
+
+// Testbench for Instruction Memory
+module InstructionMemory_tb;
+    reg [15:0] address;
+    wire [15:0] instruction;
+
+    InstructionMemory uut (
+        .address(address),
+        .instruction(instruction)
+    );
+
+    initial begin
+        address = 0;
+        #10;
+        $display("Instruction at address 0: %b", instruction);
+
+        address = 1;
+        #10;
+        $display("Instruction at address 1: %b", instruction);
+
+        $stop;
+    end
+endmodule
+2. Register File
+module RegisterFile (
+    input [2:0] read_reg1, read_reg2, write_reg,
+    input [15:0] write_data,
+    input reg_write,
+    output [15:0] read_data1, read_data2
+);
+    reg [15:0] registers [0:7]; // 8 x 16-bit registers
+
+    assign read_data1 = registers[read_reg1];
+    assign read_data2 = registers[read_reg2];
+
+    always @(*) begin
+        if (reg_write)
+            registers[write_reg] = write_data;
+    end
+endmodule
+
+// Testbench for Register File
+module RegisterFile_tb;
+    reg [2:0] read_reg1, read_reg2, write_reg;
+    reg [15:0] write_data;
+    reg reg_write;
+    wire [15:0] read_data1, read_data2;
+
+    RegisterFile uut (
+        .read_reg1(read_reg1),
+        .read_reg2(read_reg2),
+        .write_reg(write_reg),
+        .write_data(write_data),
+        .reg_write(reg_write),
+        .read_data1(read_data1),
+        .read_data2(read_data2)
+    );
+
+    initial begin
+        // Write to register 1
+        write_reg = 1;
+        write_data = 16'h1234;
+        reg_write = 1;
+        #10;
+
+        // Read from register 1
+        read_reg1 = 1;
+        reg_write = 0;
+        #10;
+        $display("Read Data 1: %h", read_data1);
+
+        $stop;
+    end
+endmodule
+3. Data Memory
+module DataMemory (
+    input [15:0] address,
+    input [15:0] write_data,
+    input mem_write, mem_read,
+    output [15:0] read_data
+);
+    reg [15:0] mem [0:255]; // 256 x 16-bit memory
+
+    assign read_data = mem_read ? mem[address] : 16'b0;
+
+    always @(*) begin
+        if (mem_write)
+            mem[address] = write_data;
+    end
+endmodule
+
+// Testbench for Data Memory
+module DataMemory_tb;
+    reg [15:0] address, write_data;
+    reg mem_write, mem_read;
+    wire [15:0] read_data;
+
+    DataMemory uut (
+        .address(address),
+        .write_data(write_data),
+        .mem_write(mem_write),
+        .mem_read(mem_read),
+        .read_data(read_data)
+    );
+
+    initial begin
+        // Write to memory
+        address = 16'h0001;
+        write_data = 16'hABCD;
+        mem_write = 1;
+        mem_read = 0;
+        #10;
+
+        // Read from memory
+        mem_write = 0;
+        mem_read = 1;
+        #10;
+        $display("Read Data: %h", read_data);
+
+        $stop;
+    end
+endmodule
+4. ALU
+module ALU (
+    input [15:0] src1, src2,
+    input [2:0] alu_control,
+    output reg [15:0] result,
+    output zero
+);
+    always @(*) begin
+        case (alu_control)
+            3'b000: result = src1 + src2; // ADD
+            3'b001: result = src1 - src2; // SUB
+            3'b010: result = src1 & src2; // AND
+            3'b011: result = src1 | src2; // OR
+            3'b100: result = ~(src1 | src2); // NOR
+            default: result = 16'b0;
+        endcase
+    end
+
+    assign zero = (result == 16'b0);
+endmodule
+
+// Testbench for ALU
+module ALU_tb;
+    reg [15:0] src1, src2;
+    reg [2:0] alu_control;
+    wire [15:0] result;
+    wire zero;
+
+    ALU uut (
+        .src1(src1),
+        .src2(src2),
+        .alu_control(alu_control),
+        .result(result),
+        .zero(zero)
+    );
+
+    initial begin
+        src1 = 16'h0005;
+        src2 = 16'h0003;
+        alu_control = 3'b000; // ADD
+        #10;
+        $display("Result: %h, Zero: %b", result, zero);
+
+        $stop;
+    end
+endmodule
+5. ALU Control Unit
+module ALUControl (
+    input [2:0] funct,
+    input [1:0] alu_op,
+    output reg [2:0] alu_control
+);
+    always @(*) begin
+        case (alu_op)
+            2'b00: alu_control = 3'b000; // ADD
+            2'b01: alu_control = 3'b001; // SUB
+            2'b10: case (funct)
+                3'b000: alu_control = 3'b000; // ADD
+                3'b001: alu_control = 3'b001; // SUB
+                3'b010: alu_control = 3'b010; // AND
+                3'b011: alu_control = 3'b011; // OR
+                default: alu_control = 3'b000;
+            endcase
+            default: alu_control = 3'b000;
+        endcase
+    end
+endmodule
+
+// Testbench for ALU Control Unit
+module ALUControl_tb;
+    reg [2:0] funct;
+    reg [1:0] alu_op;
+    wire [2:0] alu_control;
+
+    ALUControl uut (
+        .funct(funct),
+        .alu_op(alu_op),
+        .alu_control(alu_control)
+    );
+
+    initial begin
+        funct = 3'b000;
+        alu_op = 2'b10;
+        #10;
+        $display("ALU Control: %b", alu_control);
+
+        $stop;
+    end
+endmodule
+6. Control Unit
+module ControlUnit (
+    input [2:0] opcode,
+    output reg reg_write, mem_write, mem_read, alu_src,
+    output reg [1:0] alu_op
+);
+    always @(*) begin
+        case (opcode)
+            3'b000: begin // R-type
+                reg_write = 1;
+                mem_write = 0;
+                mem_read = 0;
+                alu_src = 0;
+                alu_op = 2'b10;
+            end
+            3'b001: begin // LW
+                reg_write = 1;
+                mem_write = 0;
+                mem_read = 1;
+                alu_src = 1;
+                alu_op = 2'b00;
+            end
+            3'b010: begin // SW
+                reg_write = 0;
+                mem_write = 1;
+                mem_read = 0;
+                alu_src = 1;
+                alu_op = 2'b00;
+            end
+            default: begin
+                reg_write = 0;
+                mem_write = 0;
+                mem_read = 0;
+                alu_src = 0;
+                alu_op = 2'b00;
+            end
+        endcase
+    end
+endmodule
+
+// Testbench for Control Unit
+module ControlUnit_tb;
+    reg [2:0] opcode;
+    wire reg_write, mem_write, mem_read, alu_src;
+    wire [1:0] alu_op;
+
+    ControlUnit uut (
+        .opcode(opcode),
+        .reg_write(reg_write),
+        .mem_write(mem_write),
+        .mem_read(mem_read),
+        .alu_src(alu_src),
+        .alu_op(alu_op)
+    );
+
+    initial begin
+        opcode = 3'b000; // R-type
+        #10;
+        $display("Control Signals: RegWrite=%b, MemWrite=%b, MemRead=%b, ALUSrc=%b, ALUOp=%b", reg_write, mem_write, mem_read, alu_src, alu_op);
+
+        $stop;
+    end
+endmodule
